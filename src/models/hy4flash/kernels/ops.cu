@@ -96,7 +96,10 @@ __device__ void l2_read_ahead_block(const L2Ranges& r, uint32_t* mark, uint32_t 
             }
             const uint64_t take = min(min(o1 - o, r.n[i] - ro), (uint64_t) 32768);
             const char* src = (const char*) r.p[i] + ro;
+            // cp.async.bulk.prefetch is sm_90 and newer; an older card's copy of these kernels reads the rows without it.
+#if !defined(__CUDA_ARCH__) || __CUDA_ARCH__ >= 900
             asm volatile("cp.async.bulk.prefetch.L2.global [%0], %1;" ::"l"(src), "r"((unsigned) take) : "memory");
+#endif
             last = src + take - 16;
             o += take;
         }

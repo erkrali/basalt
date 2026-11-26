@@ -573,6 +573,9 @@ if(PEER_ADA)
     src/kernels/cuda/wait_abort.cu
     src/kernels/cuda/sampler.cu
     src/kernels/cuda/elementwise.cu
+    # Hy4-flash's step between a shared prompt launch's MMQ products is its own clamped SwiGLU, so its kernels file
+    # computes the peer's rows too (its L2 read-ahead's cp.async.bulk.prefetch is compiled out below sm_90).
+    src/models/hy4flash/kernels/ops.cu
     PROPERTIES COMPILE_OPTIONS "--generate-code=arch=compute_89,code=sm_89")
 endif()
 
