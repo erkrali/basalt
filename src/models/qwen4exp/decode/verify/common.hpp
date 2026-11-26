@@ -3,6 +3,7 @@
 #include "basalt/models/qwen4exp/decode/verify.hpp"
 #include "basalt/core/peer_experts.hpp"
 #include "basalt/models/qwen4exp/kernels/qsa.hpp"
+#include <cuda_runtime.h>
 #include <algorithm>
 #include <chrono>
 #include <cstring>
@@ -62,5 +63,20 @@ extern bool g_commit_async;
 void note_fallback(const char* what, int a, int b);
 void dense_proj(int bit, int type, const void* w, const void* xq, float* y, int n_in, int n_out, int n, void* s);
 double card_bandwidth(int dev);
+
+// A card's compute capability, major * 10 + minor, or -1 when it cannot be read.  Most split paths run kernels
+// built for the main card's architecture; an older peer built through -DPEER_ADA=ON runs the expert tier's kernels,
+// plus any split kernels explicitly compiled for that older architecture.
+inline int card_cc(int dev) {
+    int major = 0, minor = 0;
+    if (cudaDeviceGetAttribute(&major, cudaDevAttrComputeCapabilityMajor, dev) != cudaSuccess ||
+        cudaDeviceGetAttribute(&minor, cudaDevAttrComputeCapabilityMinor, dev) != cudaSuccess) return -1;
+    return major * 10 + minor;
+}
+
+inline bool card_cc_same(int dev0, int dev1) {
+    const int c0 = card_cc(dev0), c1 = card_cc(dev1);
+    return c0 >= 0 && c1 >= 0 && c0 == c1;
+}
 
 }  // namespace basalt::core::verify_detail

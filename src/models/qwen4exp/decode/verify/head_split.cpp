@@ -18,11 +18,34 @@
 namespace basalt::core {
 using namespace verify_detail;
 
+// Experimental local knob (default off).  The two-stage q80_vhead path is the only head split whose peer kernel is
+// compiled for the Ada peer under -DPEER_ADA=ON, but it is opt-in because it moves vocabulary rows off the Blackwell
+// card and changes the peer's expert room.  The exact head split has no Ada kernel and remains refused.
+static bool g_peer_head_split_unlike = false;
+
+void Verifier::set_peer_head_split_unlike(bool on) { g_peer_head_split_unlike = on; }
+
+static bool exact_head_allowed(int dev0, int dev1) {
+    return card_cc_same(dev0, dev1);
+}
+
+static bool two_stage_head_allowed(int dev0, int dev1) {
+    const int c0 = card_cc(dev0), c1 = card_cc(dev1);
+    if (c0 < 0 || c1 < 0) return false;
+    if (c0 == c1) return true;
+    if (!g_peer_head_split_unlike) return false;
+#ifdef BASALT_PEER_ADA
+    return c1 == 89;
+#endif
+    return false;
+}
+
 // The head's rows are split by the time each card takes for its share: CUDA0 streams its rows, the peer streams
 // its rows and its logits cross PCIe twice (to the host, to CUDA0).  A split that leaves CUDA0 most of the rows
 // does not pay for its two hand-offs, so it is taken only when the peer's share is large.
 // CUDA0's rows of the head split by vocabulary (0: no split), from the cards' bandwidths.
 static int hs_plan(size_t rb, int type, int V, int N, int T, int dev0, int dev1) {
+    if (!exact_head_allowed(dev0, dev1)) return 0;   // the exact head's kernels exist for the main card's architecture only
     if (type == 13 ? !basalt::kernels::q5k_head_supported(N, T) : type == 14) return 0;
     const double bw0 = card_bandwidth(dev0), bw1 = card_bandwidth(dev1);
     if (bw0 <= 0.0 || bw1 <= 0.0 || rb == 0) return 0;
@@ -38,6 +61,7 @@ static int hs_plan(size_t rb, int type, int V, int N, int T, int dev0, int dev1)
 // peer's share also pays its input's and its list's trips over the host, so it takes a little less than its bandwidth's
 // share.  CUDA0's rows (0: no split).
 static int hs_plan_two(int V, int dev0, int dev1) {
+    if (!two_stage_head_allowed(dev0, dev1)) return 0;   // opt-in only for a PEER_ADA sm_89 peer; other splits stay whole
     const double bw0 = card_bandwidth(dev0), bw1 = card_bandwidth(dev1);
     if (bw0 <= 0.0 || bw1 <= 0.0 || bw1 >= bw0) return 0;
     constexpr double screen_row = 2080.0, hand_off = 20e-6;   // the bytes a row's screen reads; the trips and the list
@@ -71,6 +95,10 @@ int64_t Verifier::hs_peer_bytes(size_t row_bytes, int type, int64_t n_vocab, int
 
 void Verifier::hs_init() {
     if (head_ == nullptr || !head_->loaded() || head_->vproxy() != nullptr || dm_ == nullptr || dm_->pdev < 0) return;
+    if (!exact_head_allowed(device_, dm_->pdev) && !two_stage_head_allowed(device_, dm_->pdev)) {
+        basalt::log::info("basalt verify", "the head stays whole on CUDA0: the peer is not the main card's architecture");
+        return;
+    }
     const int N = (int) g_->n_embd, V = (int) n_vocab_, T = max_t_;
     const size_t rb = head_->row_bytes();
     if (head_->planes() && head_keep_d_ != nullptr && le_ >= g_->n_layers &&

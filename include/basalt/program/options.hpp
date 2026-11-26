@@ -44,6 +44,10 @@ struct CommonOptions {
     int expert_cache = 0;
     /// Multi-GPU: the VRAM a card after the main one leaves free
     int peer_reserve_mib = 600;
+    /// --peer-head-split-unlike: experimental, default off. In a PEER_ADA build, allow Flash-Next's two-stage
+    /// q80_vhead vocabulary split on a peer of another compute capability (the sm_89 Ada peer). The exact head
+    /// split, the GDN split and prompt-layer split stay refused for an unlike peer.
+    bool peer_head_split_unlike = false;
     bool no_prompt_skip = false;  ///< --no-prompt-skip: every prompt row through every layer
     std::string kv;               ///< --kv: the KV storage, as each model names it (empty: the model's default)
     /// --rope-scaling, --rope-scale, --yarn-* ...: taken by the models that extend their context (basalt/model/rope_flags.hpp)

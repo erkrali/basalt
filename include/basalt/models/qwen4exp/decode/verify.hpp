@@ -251,6 +251,9 @@ public:
     /// The head is split for its two-stage screen (a Q8_0 head, a peer slower than CUDA0): the peer's bytes are taken
     /// before its expert tier is filled.
     static bool hs_two_stage(int type, int64_t n_vocab, int64_t n_embd, int max_t, int dev0, int dev1);
+    /// Experimental, default off: allow Flash-Next's two-stage q80_vhead split on a non-main-architecture peer when
+    /// the build carries the Ada peer kernels (-DPEER_ADA=ON). The exact head split stays refused.
+    static void set_peer_head_split_unlike(bool on);
     /// The bytes prepare_hc8 will place when `has` names the tensors the model holds (0 with the copies off).
     static uint64_t hc8_plan_bytes(const std::function<bool(const std::string&)>& has, const ModelGeometry& g);
 

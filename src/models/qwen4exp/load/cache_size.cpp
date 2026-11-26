@@ -40,6 +40,9 @@ int cache_size(Context& context) {
     };
     // the GDN mixer split is priced once, before either card sizes its experts: its peer reserve displaces experts
     // only when the cards cannot hold them all
+    // the head split's sizing must see the same opt-in as its init, so an unlike peer either reserves its head share
+    // here or leaves the head whole on CUDA0
+    basalt::core::Verifier::set_peer_head_split_unlike(o.peer_head_split_unlike);
     if (o.peer_device >= 1) {
         int d0 = 0, count = 0;
         size_t f0 = 0, t0 = 0, f1 = 0, t1 = 0;
