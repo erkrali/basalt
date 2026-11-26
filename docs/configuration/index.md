@@ -88,6 +88,7 @@ Command line `--name`; the Where column says which config block takes it.
 | `gpu-mode` | entry, `basalt`, `basalt-bench`, `basalt-probe` | `"peer"`, `"split"`, `"tensor"` | none | What the cards do together. Required when `gpu` names two or more cards, an error with one. [GPUs](gpus.md#modes) |
 | `gpu-share` | entry, `basalt`, `basalt-bench`, `basalt-probe` | `"3,1"` | by the mode | Relative shares, one positive number per card in the order of `gpu`. [GPUs](gpus.md#shares) |
 | `peer-reserve-mib` | engine | MiB | 600 | VRAM the second card keeps free after its experts and prompt buffers. Raise it when the start says the peer's buffers do not fit. [GPUs](gpus.md#two-16-gb-cards) |
+| `peer-head-split-unlike` | engine | switch | off | Flash-Next only, and only beside an sm_89 (Ada) peer in a `-DPEER_ADA=ON` build: asks for the head's two-stage vocabulary split on that card instead of leaving the head on the main card. Experimental. [GPUs](gpus.md#an-older-peer-card) |
 
 ## Context and KV cache
 

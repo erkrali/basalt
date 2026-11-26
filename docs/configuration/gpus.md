@@ -127,12 +127,20 @@ One older architecture can be built for the peer's kernels: sm_89 (Ada), beside 
 flag (off by default to keep build times down). Without it, or for any other pre-Blackwell card, the card is refused at the start.
 What such a peer does:
 
-- It holds experts and computes their rows in every decode window with the standard-CUDA kernels (Q8_1/Q2_0 and the GGUF i-quant
-  rows, dp4a arithmetic). It reads its experts' share of a prompt chunk under the slower-card rule (chunks up to 2,559 rows).
+- It holds experts and computes their rows in every decode window with the standard-CUDA kernels (Q8_1/Q2_0, the GGUF i-quant rows
+  and the integer NVFP4 expert rows, all dp4a arithmetic and no FP4 tensor cores). It reads its experts' share of a prompt chunk
+  under the slower-card rule: for Flash-Next, chunks up to 2,559 rows, or up to 767 with an NVFP4 pack, whose integer rows on the
+  peer bind the chunk past that; Hy4-flash sizes the share from what the two cards measure.
 - It does not run the main card's work: the dense weights, the KV cache, the drafter, TMA and the FP4 tensor-core expert kernels stay
-  on the Blackwell card, so an NVFP4 pack's FP4 experts are main-card only.
-- Only Flash-Next's peer kernels are built for it; the other models refuse an sm_89 card. Split and tensor need sm_120 cards
-  (`gpu-mode split: GPU 1 (RTX 4060 Ti) is sm_89; split and tensor run on sm_120 cards`).
+  on the Blackwell card. An NVFP4 pack's experts reach the peer through the integer rows above, never through FP4 tensor cores.
+- Flash-Next's and Hy4-flash's peer kernels are built for it, Hy4-flash's prompt-share activation with them; DeepSeek, Qwen3.8-27B
+  and Inkling 2 Mini refuse an sm_89 card. Split and tensor need sm_120 cards
+  (`gpu-mode split: GPU 1 (RTX 4060 Ti) is sm_89; split and tensor run on sm_120 cards`), and so does Flash-Next's prompt-layer
+  split: such a peer holds experts and no prompt layers.
+- Flash-Next's GDN mixer split and its exact head split stay with the main card's architecture: the start prints
+  `the GDN mixers stay whole on CUDA0` and `the head stays whole on CUDA0`. The head's two-stage vocabulary split can be asked for
+  with `peer-head-split-unlike` (off by default), which is experimental: it moves vocabulary rows onto the older card and prices
+  them into that card's expert room.
 
 Three or more cards are community-tested: the path is checked on two cards. Reports from machines with three or four cards are
 welcome ([community](../community.md)).

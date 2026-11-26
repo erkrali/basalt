@@ -78,7 +78,8 @@ refused with the modes it runs.
 
 - **Peer:** the shared expert tier as DeepSeek's: each peer holds the experts of one block of layers, sized to its free memory (or by
   `gpu-share`), computes them in every decode window and takes its share of each prompt chunk. A peer that would hold nothing is
-  refused; an sm_89 peer is refused too.
+  refused. An sm_89 (Ada) peer is taken in a `-DPEER_ADA=ON` build, where the kernels for that share are built for the older card
+  too ([older peer card](../configuration/gpus.md#an-older-peer-card)).
 
 ## Long prompts
 
